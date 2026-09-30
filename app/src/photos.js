@@ -16,7 +16,7 @@ export const PHOTOS = [
   { title: 'Bem-vindo', tag: 'Newborn · 10 dias', tone: 0 },
 ];
 
-const TONES = [
+export const TONES = [
   ['#f7e8d6', '#eac7a6', '#c99274'],
   ['#f0f1e6', '#d3dcc4', '#a4b28f'],
   ['#faeae4', '#f1c8bd', '#dc9f92'],

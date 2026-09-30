@@ -24,7 +24,7 @@ export function createStory(root) {
       const off = s.k - camT;
       const a = Math.abs(off);
       s.el.style.transform = `translate3d(0, ${(off * H).toFixed(2)}px, 0)`;
-      s.el.style.opacity = (1 - smooth(0.3, 0.75, a)).toFixed(3);
+      s.el.style.opacity = (1 - smooth(0.18, 0.55, a)).toFixed(3);
       s.el.style.visibility = a > 1.05 ? 'hidden' : 'visible';
       // paralaxe: elementos com data-depth > 1 andam um pouco mais rápido
       for (const kid of s.kids) {

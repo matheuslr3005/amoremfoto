@@ -14,9 +14,9 @@ Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Font
 
 ## O que tem
 
-- **História 3D em scroll** (`app/src/gl.js`, `app/src/timeline.js`): uma esfera de luz atravessa 3 cenas — rampa → pinos → espiral — e pousa num ninho. Inspirada no vídeo de referência.
-- **Hora do dia** (`app/src/mood.js`): Manhã / Tarde / Entardecer trocam cores, direção da luz, sombras e a esfera (botões no topo + slider na seção "A luz").
-- **Pinos que seguem o cursor** como girassóis e se afastam da esfera.
+- **História 3D em scroll** (`app/src/gl.js`, `app/src/timeline.js`): uma **câmera** atravessa 3 cenas — rebatedor de luz → grade de lentes → tira de filme — e pousa num **cartão de memória**. Inspirada no vídeo de referência. Todos os objetos são feitos de primitivas em `app/src/props.js` (sem arquivos de modelo).
+- **Hora do dia** (`app/src/mood.js`): Manhã / Tarde / Entardecer trocam cores, direção da luz, sombras e a luz dos objetos (botões no topo + slider na seção "A luz").
+- **A câmera do hero e as lentes da cena "Olhar" viram para olhar o cursor**; as lentes também se afastam quando a câmera passa perto.
 - **Luz de janela + poeira de luz + grão** no fundo; foco de luz seguindo o mouse.
 - **Galeria horizontal** com tilt 3D, paralaxe interna e lightbox (`app/src/gallery.js`).
 - Menu em tela cheia, botões magnéticos, responsivo (mobile), `prefers-reduced-motion`, fallback sem WebGL.

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { buildCamera, buildReflector, buildLensGeometry, buildFilmStrip, buildMemoryCard, LENS_R } from './props.js';
 import { sampleMood } from './mood.js';
 import { stageAt, clamp, lerp, smooth, easeInOutCubic, easeOutCubic, camAtMove } from './timeline.js';
 
@@ -9,21 +9,20 @@ const FOV = 30;
 const VH_WORLD = 2 * D * Math.tan(THREE.MathUtils.degToRad(FOV / 2)); // altura visível em z=0
 
 // ---------- medidas em "unidades U" (U = tamanho de referência da cena) ----------
-const BALL_R = 0.052;
-const HERO_SCALE = 2.7;
+const BALL_R = 0.058; // "raio" de referência da câmera que viaja (largura do corpo = 2.4 × isto)
+const CAM_BOTTOM = 0.8; // metade da altura da câmera (em BALL_R) – onde ela toca as superfícies
+const HERO_SCALE = 2.3;
 
-const RAMP_L = 0.7;
-const RAMP_T = 0.09;
-const RAMP_D = 0.36;
-const RAMP_TILT = 0.5; // giro da placa em torno do eixo longo (mostra a face de cima)
+const RAMP_L = 0.56; // diâmetro do rebatedor
+const RAMP_T = 0.05;
+const RAMP_TILT = 0.5; // giro do disco em torno do eixo longo (mostra a face de cima)
 const RAMP_TH = -0.62;
 
 const PIN_ROWS = 6;
 const PIN_COLS = 5;
 const PIN_SX = 0.135;
 const PIN_SY = 0.118;
-const PIN_R = 0.034;
-const PIN_LEN = 0.07;
+const PIN_R = LENS_R;
 const HITS = [
   [0, 2],
   [1, 2],
@@ -33,11 +32,12 @@ const HITS = [
   [5, 1],
 ];
 
-const HELIX_R = 0.15;
+const HELIX_R = 0.14;
 const HELIX_TURNS = 2;
 const HELIX_TOP = 0.34;
 const HELIX_BOT = -0.13;
-const CHANNEL_R = 0.064;
+const FILM_W = 0.15;
+const NEST_S = 0.7; // escala do cartão de memória
 
 function radialTexture(stops, size = 256) {
   const c = document.createElement('canvas');
@@ -50,73 +50,6 @@ function radialTexture(stops, size = 256) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
-}
-
-function ballTexture() {
-  const c = document.createElement('canvas');
-  c.width = 64;
-  c.height = 256;
-  const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, '#ffe08a');
-  gr.addColorStop(0.42, '#ffa35c');
-  gr.addColorStop(1, '#ee5f7a');
-  g.fillStyle = gr;
-  g.fillRect(0, 0, 64, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-// canal em "C" ao longo da hélice, com a abertura sempre voltada para a câmera (a esfera nunca some)
-function buildChannel(curve, segs, radial, radius, arc) {
-  const pos = [];
-  const nor = [];
-  const col = [];
-  const idx = [];
-  const c0 = new THREE.Color('#b4c19d');
-  const c1 = new THREE.Color('#f8ecda');
-  const c2 = new THREE.Color('#e6a891');
-  const tmp = new THREE.Color();
-  const T = new THREE.Vector3();
-  const d = new THREE.Vector3();
-  const e2 = new THREE.Vector3();
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const P = curve.getPointAt(t);
-    curve.getTangentAt(t, T);
-    // direção da abertura: para a câmera (+z) e um pouco para fora, ortogonal à tangente
-    d.set(P.x * 3.2, 0, 1).normalize();
-    d.addScaledVector(T, -d.dot(T)).normalize();
-    e2.crossVectors(T, d).normalize();
-    if (t < 0.5) tmp.copy(c0).lerp(c1, t * 2);
-    else tmp.copy(c1).lerp(c2, (t - 0.5) * 2);
-    for (let j = 0; j <= radial; j++) {
-      const a = -arc / 2 + (arc * j) / radial;
-      const ca = -Math.cos(a); // centro do "C" fica oposto à abertura
-      const sa = Math.sin(a);
-      const dx = d.x * ca + e2.x * sa;
-      const dy = d.y * ca + e2.y * sa;
-      const dz = d.z * ca + e2.z * sa;
-      pos.push(P.x + dx * radius, P.y + dy * radius, P.z + dz * radius);
-      nor.push(dx, dy, dz);
-      col.push(tmp.r, tmp.g, tmp.b);
-    }
-  }
-  const row = radial + 1;
-  for (let i = 0; i < segs; i++) {
-    for (let j = 0; j < radial; j++) {
-      const a = i * row + j;
-      const b = a + row;
-      idx.push(a, b, a + 1, b, b + 1, a + 1);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setIndex(idx);
-  return g;
 }
 
 export function createWorld(canvas) {
@@ -155,29 +88,14 @@ export function createWorld(canvas) {
   scene.add(wall);
 
   // ---------- materiais ----------
-  const porcelain = new THREE.MeshStandardMaterial({ color: '#fbf3ea', roughness: 0.55, metalness: 0 });
-  const pinMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.5, metalness: 0 });
-  const channelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
-  const nestMat = new THREE.MeshStandardMaterial({ color: '#e7c3a2', roughness: 0.9, metalness: 0 });
-  const nestIn = new THREE.MeshStandardMaterial({ color: '#d9ad8b', roughness: 1, metalness: 0 });
-  const ballMap = ballTexture();
-  const ballMat = new THREE.MeshStandardMaterial({
-    map: ballMap,
-    roughness: 0.3,
-    metalness: 0,
-    emissive: new THREE.Color('#ff9a52'),
-    emissiveMap: ballMap,
-    emissiveIntensity: 0.28,
-  });
+  const lensMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.38, metalness: 0.2 });
 
-  // ---------- cena 1 · rampa ----------
+  // ---------- cena 1 · rebatedor de luz ----------
   const gRamp = new THREE.Group();
   {
-    const ramp = new THREE.Mesh(new RoundedBoxGeometry(RAMP_L, RAMP_T, RAMP_D, 5, 0.04), porcelain);
-    ramp.castShadow = true;
-    ramp.receiveShadow = true;
-    ramp.rotation.x = RAMP_TILT;
-    gRamp.add(ramp);
+    const reflector = buildReflector(RAMP_L / 2, RAMP_T);
+    reflector.rotation.x = RAMP_TILT;
+    gRamp.add(reflector);
     gRamp.rotation.z = RAMP_TH;
   }
   scene.add(gRamp);
@@ -185,25 +103,22 @@ export function createWorld(canvas) {
   // ---------- cena 2 · pinos ----------
   const gPins = new THREE.Group();
   const pinCount = PIN_ROWS * PIN_COLS;
-  const pinGeo = new THREE.CapsuleGeometry(PIN_R, PIN_LEN, 6, 18);
-  pinGeo.rotateX(Math.PI / 2); // eixo apontando para a câmera (+z)
-  pinGeo.translate(0, 0, PIN_LEN / 2);
-  const pins = new THREE.InstancedMesh(pinGeo, pinMat, pinCount);
+  const pins = new THREE.InstancedMesh(buildLensGeometry(), lensMat, pinCount);
   pins.castShadow = true;
   pins.receiveShadow = true;
   pins.frustumCulled = false;
   const pinBase = [];
   {
-    const cA = new THREE.Color('#f3cdb8');
+    const cA = new THREE.Color('#f1c3ac');
     const cB = new THREE.Color('#f7eddf');
-    const cC = new THREE.Color('#c3cfb6');
+    const cC = new THREE.Color('#cdbdae');
     const tmp = new THREE.Color();
     for (let r = 0; r < PIN_ROWS; r++) {
       for (let c = 0; c < PIN_COLS; c++) {
         const i = r * PIN_COLS + c;
         const x = (c - 2) * PIN_SX + (r % 2 ? PIN_SX * 0.5 : 0) - PIN_SX * 0.25;
         const y = ((PIN_ROWS - 1) / 2 - r) * PIN_SY;
-        pinBase.push({ x, y, tx: 0, ty: 0, s: 1 });
+        pinBase.push({ x, y, tx: 0, ty: 0, s: 1, len: 0.85 + ((r * 7 + c * 13) % 5) * 0.1 });
         const t = r / (PIN_ROWS - 1);
         tmp.copy(t < 0.5 ? cA.clone().lerp(cB, t * 2) : cB.clone().lerp(cC, (t - 0.5) * 2));
         pins.setColorAt(i, tmp);
@@ -223,39 +138,22 @@ export function createWorld(canvas) {
     helixPts.push(new THREE.Vector3(HELIX_R * Math.cos(th), lerp(HELIX_TOP, HELIX_BOT, s), HELIX_R * Math.sin(th)));
   }
   const helixCurve = new THREE.CatmullRomCurve3(helixPts, false, 'catmullrom', 0.5);
-  const channel = new THREE.Mesh(buildChannel(helixCurve, 420, 28, CHANNEL_R, Math.PI * 1.35), channelMat);
-  channel.castShadow = true;
-  channel.receiveShadow = true;
-  gHelix.add(channel);
+  gHelix.add(buildFilmStrip(helixCurve, 520, FILM_W, 9));
   scene.add(gHelix);
 
+  // cartão de memória no final da tira
   const gNest = new THREE.Group();
   {
-    const torus = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.052, 20, 64), nestMat);
-    torus.castShadow = true;
-    torus.receiveShadow = true;
-    const inner = new THREE.Mesh(new THREE.CircleGeometry(0.15, 48), nestIn);
-    inner.position.z = -0.03;
-    inner.receiveShadow = true;
     const pivot = new THREE.Group();
-    pivot.add(torus, inner);
-    pivot.rotation.x = -0.95;
+    pivot.add(buildMemoryCard());
+    pivot.rotation.set(-0.95, 0, 0.1);
     gNest.add(pivot);
   }
   scene.add(gNest);
 
-  // ---------- esfera de luz ----------
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), ballMat);
-  ball.castShadow = true;
-  scene.add(ball);
-  const glowTex = radialTexture([
-    [0, 'rgba(255,255,255,0.95)'],
-    [0.25, 'rgba(255,255,255,0.45)'],
-    [0.6, 'rgba(255,255,255,0.1)'],
-    [1, 'rgba(255,255,255,0)'],
-  ]);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffdcae', transparent: true, depthWrite: false, opacity: 0.7 }));
-  scene.add(glow);
+  // ---------- a câmera que viaja pela história ----------
+  const cam = buildCamera();
+  scene.add(cam);
 
   // ---------- poeira de luz ----------
   const dustTex = radialTexture([
@@ -304,8 +202,9 @@ export function createWorld(canvas) {
   };
   const moodOut = {};
   const P = new THREE.Vector3();
-  const ballWorld = new THREE.Vector3();
-  const ballRadiusWorld = { v: 0 };
+  const ballWorld = new THREE.Vector3(); // posição da câmera que viaja (empurra as lentes)
+  const pose = { roll: 0, yaw: 0, pitch: 0 };
+  let nowT = 0;
 
   function layout(w, h) {
     L.w = w;
@@ -336,7 +235,7 @@ export function createWorld(canvas) {
     const s = Math.sin(RAMP_TH);
     const rampPt = (xl, out) => {
       // superfície de cima da placa (girada em RAMP_TILT) + raio da esfera
-      const ly = RAMP_T / 2 + BALL_R * 0.98;
+      const ly = RAMP_T / 2 + BALL_R * CAM_BOTTOM;
       const oy = ly * Math.cos(RAMP_TILT);
       const oz = ly * Math.sin(RAMP_TILT);
       out.set(gRamp.position.x + U * (xl * c - oy * s), gRamp.position.y + U * (xl * s + oy * c), U * oz);
@@ -346,7 +245,7 @@ export function createWorld(canvas) {
 
     HITS.forEach(([r, col], i) => {
       const b = pinBase[r * PIN_COLS + col];
-      pos.pinHits[i].set(gPins.position.x + U * b.x, gPins.position.y + U * (b.y + PIN_R + BALL_R * 0.9), U * 0.06);
+      pos.pinHits[i].set(gPins.position.x + U * b.x, gPins.position.y + U * (b.y + PIN_R + BALL_R * CAM_BOTTOM), U * 0.05);
     });
     pos.pinEntry.copy(pos.pinHits[0]);
     pos.pinEntry.y += U * 0.22;
@@ -355,9 +254,10 @@ export function createWorld(canvas) {
     const he = helixCurve.getPointAt(1);
     pos.helixStart.set(gHelix.position.x + UH * hs.x, gHelix.position.y + UH * hs.y, UH * hs.z);
     pos.helixEnd.set(gHelix.position.x + UH * he.x, gHelix.position.y + UH * he.y, UH * he.z);
-    gNest.position.set(pos.helixEnd.x, pos.helixEnd.y - UH * 0.12, UH * 0.1);
-    gNest.scale.setScalar(UH);
-    pos.nest.set(gNest.position.x, gNest.position.y + UH * 0.035, gNest.position.z + UH * 0.02);
+    gNest.position.set(pos.helixEnd.x, pos.helixEnd.y - UH * 0.15, UH * 0.1);
+    gNest.scale.setScalar(UH * NEST_S);
+    // a câmera pousa na parte de baixo do cartão, deixando o rótulo aparecer
+    pos.nest.set(gNest.position.x - UH * 0.03, gNest.position.y + UH * (0.02 + BALL_R * CAM_BOTTOM - 0.05), gNest.position.z + UH * 0.09);
 
     // parede de sombra
     const wallZ = -0.33 * U;
@@ -392,24 +292,42 @@ export function createWorld(canvas) {
     { dx: -0.6, dy: -0.8, v: 0.1 },
   ];
 
+  const ptrX = () => state.pointer.sx;
+
+  // posição (mundo) + pose da câmera em cada momento da cena k (u = 0..1)
   function actionPos(k, u, out) {
     const { U } = L;
+    pose.roll = 0;
+    pose.yaw = ptrX() * 0.3;
+    pose.pitch = 0;
     if (k === 1) {
       const hold = 0.12;
       const t = Math.pow(clamp((u - hold) / (1 - hold)), 1.8);
       out.lerpVectors(pos.rampStart, pos.rampEnd, t);
+      // desliza pelo rebatedor, acompanhando a inclinação
+      pose.roll = RAMP_TH * 0.92 + Math.sin(nowT * 5) * 0.012 * t;
+      pose.yaw = 0.3 + ptrX() * 0.2;
+      pose.pitch = -0.06;
     } else if (k === 2) {
       const n = HITS.length;
       const f = u * n; // segmento 0 = queda de entrada
       if (f < 1) {
         const t = f * f;
         out.lerpVectors(pos.pinEntry, pos.pinHits[0], t);
+        pose.roll = (1 - t) * 0.25;
       } else {
         const i = Math.min(n - 2, Math.floor(f - 1));
         const t = f - 1 - i;
         out.lerpVectors(pos.pinHits[i], pos.pinHits[i + 1], t);
         out.y += U * 0.06 * 4 * t * (1 - t);
-        if (u >= 1) out.copy(pos.pinHits[n - 1]);
+        // gira um pouquinho a cada pulo, na direção do movimento
+        const dir = Math.sign(pos.pinHits[i + 1].x - pos.pinHits[i].x) || 1;
+        pose.roll = -dir * 0.55 * Math.sin(Math.PI * t);
+        pose.yaw = -dir * 0.25 * Math.sin(Math.PI * t) + ptrX() * 0.2;
+        if (u >= 1) {
+          out.copy(pos.pinHits[n - 1]);
+          pose.roll = 0;
+        }
       }
     } else if (k === 3) {
       const run = 0.86;
@@ -418,12 +336,20 @@ export function createWorld(canvas) {
         let t = clamp((u - hold) / (run - hold));
         t = t * t * (3 - 2 * t) * 0.65 + t * 0.35;
         const hp = helixCurve.getPointAt(t);
-        out.set(gHelix.position.x + L.UH * hp.x, gHelix.position.y + L.UH * hp.y, L.UH * hp.z);
+        const tg = helixCurve.getTangentAt(t);
+        // a câmera anda sobre a tira de filme (face da tira aponta para +z)
+        out.set(gHelix.position.x + L.UH * hp.x, gHelix.position.y + L.UH * hp.y, L.UH * hp.z + BALL_R * L.UH * 0.5);
+        pose.roll = -0.7 * Math.tanh(tg.x * 4);
+        pose.yaw = tg.x * 0.4 + ptrX() * 0.15;
+        pose.pitch = 0.05;
       } else {
         const t = (u - run) / (1 - run);
         const e = t * t;
         out.lerpVectors(pos.helixEnd, pos.nest, e);
         out.y += U * 0.05 * Math.sin(Math.PI * Math.min(1, t * 1.4)) * (1 - t) * 0.6;
+        pose.roll = 0;
+        pose.yaw = ptrX() * 0.3;
+        pose.pitch = -0.05 * t;
       }
     } else {
       out.copy(pos.hero);
@@ -444,73 +370,94 @@ export function createWorld(canvas) {
   const A = new THREE.Vector3();
   const B = new THREE.Vector3();
 
-  function placeBall(st, time) {
+  const poseA = { roll: 0, yaw: 0, pitch: 0 };
+  const poseB = { roll: 0, yaw: 0, pitch: 0 };
+  const heroPose = (out, time) => {
+    const ptr = state.pointer;
+    // a lente acompanha o cursor
+    out.roll = Math.sin(time * 0.9) * 0.04;
+    out.yaw = ptr.sx * 0.6 + Math.sin(time * 0.7) * 0.08;
+    out.pitch = -ptr.sy * 0.38;
+  };
+
+  function placeCamera(st, time) {
     const { VW, VH, U } = L;
     let sc = 1;
     let visible = true;
     const ptr = state.pointer;
+    nowT = time;
 
     if (st.kind === 'hold') {
       P.copy(pos.hero);
       P.x += ptr.sx * 0.03 * VW;
       P.y += ptr.sy * 0.03 * VH + Math.sin(time * 1.1) * 0.012 * VH;
       sc = HERO_SCALE * (1 + Math.sin(time * 1.6) * 0.012);
+      heroPose(pose, time);
     } else if (st.kind === 'act') {
       actionPos(st.scene, st.u, P);
-      if (st.scene === 3) P.y += Math.sin(time * 2) * (st.u > 0.98 ? U * 0.004 : 0);
     } else {
       const j = st.from;
       const u = st.u;
       const split1 = 0.46;
       const split2 = 0.52;
-      const r1 = BALL_R * U * (j === 0 ? lerp(HERO_SCALE, 1, smooth(0, split1, u)) : 1);
+      const scale1 = j === 0 ? lerp(HERO_SCALE, 1, smooth(0, split1, u)) : 1;
+      const r1 = BALL_R * U * scale1;
       if (u < split1) {
-        // queda para fora da tela
-        if (j === 0) A.copy(pos.hero);
-        else actionPos(j, 1, A);
+        // queda para fora da tela, girando
+        if (j === 0) {
+          A.copy(pos.hero);
+          heroPose(poseA, time);
+        } else {
+          actionPos(j, 1, A);
+          Object.assign(poseA, pose);
+        }
         const ex = EXIT[j];
         const vx = ex.dx * ex.v * U;
         const vy = ex.dy * ex.v * U;
         const u1 = u / split1;
         const camEnd = -(j + easeInOutCubic(split1)) * VH;
-        const yT = camEnd - VH / 2 - 3 * r1;
+        const yT = camEnd - VH / 2 - 3.6 * r1;
         const g = A.y + vy - yT;
         P.set(A.x + vx * u1, A.y + vy * u1 - g * u1 * u1, A.z);
-        sc = j === 0 ? lerp(HERO_SCALE, 1, smooth(0, split1, u)) : 1;
+        sc = scale1;
+        pose.roll = poseA.roll - u1 * u1 * 4.6;
+        pose.yaw = poseA.yaw * (1 - u1);
+        pose.pitch = poseA.pitch * (1 - u1);
       } else if (u < split2) {
         visible = false;
         P.set(0, -j * VH, 0);
       } else {
-        // entra por cima na próxima cena
+        // entra por cima na próxima cena e "pousa"
         const v = (u - split2) / (1 - split2);
         actionPos(j + 1, 0, B);
+        Object.assign(poseB, pose);
         const camNow = camAtMove(j, j + 1, u) * -VH;
         const camEnd = -(j + 1) * VH;
-        const startLocal = VH / 2 + 3 * BALL_R * U;
+        const startLocal = VH / 2 + 3.6 * BALL_R * U;
         const targetLocal = B.y - camEnd;
         const f = landing(v);
         const side = (B.x >= 0 ? -1 : 1) * 0.07 * VW * (1 - easeOutCubic(v));
         P.set(B.x + side, camNow + lerp(startLocal, targetLocal, f), B.z);
+        const k = 1 - easeOutCubic(v);
+        pose.roll = poseB.roll + k * 3.4;
+        pose.yaw = poseB.yaw;
+        pose.pitch = poseB.pitch;
         sc = 1;
       }
     }
 
-    // entrada inicial (intro) – a esfera "acende"
+    // entrada inicial (intro): a câmera surge girando
     const intro = state.intro;
-    ball.visible = visible && intro > 0.001;
-    glow.visible = ball.visible;
-    const r = BALL_R * U * sc * (0.2 + 0.8 * easeOutCubic(intro));
-    ball.position.copy(P);
-    ball.scale.setScalar(r);
-    glow.position.copy(P);
-    glow.position.z -= r * 0.5;
-    const gs = r * (st.kind === 'hold' ? 6.5 : 5);
-    glow.scale.set(gs, gs, 1);
+    const ie = easeOutCubic(intro);
+    cam.visible = visible && intro > 0.001;
+    const r = BALL_R * U * sc * (0.2 + 0.8 * ie);
+    cam.position.copy(P);
+    cam.scale.setScalar(r);
+    cam.rotation.set(pose.pitch, pose.yaw, pose.roll + (1 - ie) * -2.4);
     ballWorld.copy(P);
-    ballRadiusWorld.v = r;
   }
 
-  // ---------- pinos reagem ao cursor e à esfera ----------
+  // ---------- lentes reagem ao cursor e à câmera ----------
   const dummy = new THREE.Object3D();
   const vTilt = new THREE.Vector3();
   const zAxis = new THREE.Vector3(0, 0, 1);
@@ -527,7 +474,7 @@ export function createWorld(canvas) {
       const wx = gPins.position.x + U * b.x;
       const wy = gPins.position.y + U * b.y;
 
-      // cursor: o pino se inclina em direção à "luz" (cursor)
+      // cursor: a lente se vira para olhar o cursor
       let dx = ptr.wx - wx;
       let dy = ptr.wy - wy;
       let dist = Math.hypot(dx, dy) || 1e-4;
@@ -535,7 +482,7 @@ export function createWorld(canvas) {
       let tx = (dx / dist) * fc * 0.95;
       let ty = (dy / dist) * fc * 0.95;
 
-      // esfera: empurra os pinos para longe quando passa perto
+      // câmera: empurra as lentes para longe quando passa perto
       dx = ballWorld.x - wx;
       dy = ballWorld.y - wy;
       dist = Math.hypot(dx, dy) || 1e-4;
@@ -555,7 +502,7 @@ export function createWorld(canvas) {
       q.setFromUnitVectors(zAxis, vTilt);
       dummy.position.set(b.x, b.y, 0);
       dummy.quaternion.copy(q);
-      dummy.scale.setScalar(b.s);
+      dummy.scale.set(b.s, b.s, b.s * b.len);
       dummy.updateMatrix();
       pins.setMatrixAt(i, dummy.matrix);
     }
@@ -582,7 +529,6 @@ export function createWorld(canvas) {
 
   // ---------- frame ----------
   let last = 0;
-  const _pp = new THREE.Vector3();
 
   function render(p, time) {
     const dt = Math.min(0.05, time - last || 0.016);
@@ -619,15 +565,11 @@ export function createWorld(canvas) {
     wallMat.opacity = m.shadowOp;
     wall.position.x = 0;
     wall.position.y = camY;
-    ballMat.emissive.copy(m.ball);
-    ballMat.emissiveIntensity = m.ballEmit;
-    glow.material.color.copy(m.glow);
-    glow.material.opacity = m.glowOp * (0.55 + 0.45 * (st.kind === 'hold' ? 1 : 0.7)) * easeOutCubic(state.intro);
 
-    // flutuação sutil dos objetos
+    // flutuação sutil do rebatedor
     gRamp.children[0].position.y = Math.sin(time * 0.8) * 0.004;
 
-    placeBall(st, time);
+    placeCamera(st, time);
     updatePins(time, dt);
 
     dustA.pts.position.set(0, camY, 0);
@@ -642,7 +584,7 @@ export function createWorld(canvas) {
     render,
     resize,
     state,
-    dbg: { scene, gRamp, gPins, gHelix, gNest, ball, glow, dustA, dustB, wall, key },
+    dbg: { scene, gRamp, gPins, gHelix, gNest, cam, dustA, dustB, wall, key },
     setMood(m) {
       state.mood = m;
     },
