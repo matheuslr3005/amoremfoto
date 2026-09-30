@@ -7,7 +7,7 @@ Site de fotografia newborn em **luz natural**, com história 3D guiada pelo scro
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run build    # gera /dist (estático, pode ir para qualquer hospedagem)
+npm run build    # gera /docs (estático, pronto para o GitHub Pages)
 ```
 
 Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Fontes self-hosted (Fraunces + Manrope) — **provisórias**, sem marca definida ainda.
@@ -35,3 +35,6 @@ Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Font
 Sem logo por enquanto: `amor em foto` (topo-esquerda) é só texto provisório. Quando houver logo/tipografia da marca, trocar em `.brand` (`index.html`) e nas variáveis do `:root`.
 
 Debug: abra a página com `?debug` para expor `window.__amor`.
+
+## Publicar (GitHub Pages)
+O build já fica commitado em `docs/`. No GitHub: **Settings → Pages → Deploy from a branch →** escolha a branch e a pasta **/docs**. O site abre em `https://<usuario>.github.io/amoremfoto/`. Depois de mudar o código, rode `npm run build` e commite a pasta `docs/` de novo.
