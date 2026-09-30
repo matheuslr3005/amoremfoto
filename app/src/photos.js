@@ -33,9 +33,7 @@ function rng(seed) {
   };
 }
 
-export function makePhoto(i, tone) {
-  const W = 520;
-  const H = 650;
+export function makePhotoCanvas(i, tone, W = 520, H = 650) {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -114,5 +112,9 @@ export function makePhoto(i, tone) {
     d[p + 2] += n;
   }
   g.putImageData(img, 0, 0);
-  return c.toDataURL('image/jpeg', 0.86);
+  return c;
+}
+
+export function makePhoto(i, tone) {
+  return makePhotoCanvas(i, tone).toDataURL('image/jpeg', 0.86);
 }

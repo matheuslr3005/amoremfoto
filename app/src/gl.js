@@ -1,35 +1,52 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildCamera, buildReflector, buildLensGeometry, buildFilmStrip, buildMemoryCard, LENS_R } from './props.js';
-import { sampleMood } from './mood.js';
+import { buildCamera, buildReflector, buildPrint, setDevelop, buildFilmStrip, buildMemoryCard } from './props.js';
+import { makePhotoCanvas } from './photos.js';
 import { stageAt, clamp, lerp, smooth, easeInOutCubic, easeOutCubic, camAtMove } from './timeline.js';
 
 const D = 30; // distância da câmera
 const FOV = 30;
 const VH_WORLD = 2 * D * Math.tan(THREE.MathUtils.degToRad(FOV / 2)); // altura visível em z=0
 
+// luz única do site: janela suave, levemente quente
+const THEME = {
+  light: '#fff3e3',
+  key: 2.2,
+  hemi: 0.7,
+  env: 0.62,
+  shadow: '#4b3b31',
+  shadowOp: 0.2,
+  dir: [-0.22, 0.28],
+};
+
 // ---------- medidas em "unidades U" (U = tamanho de referência da cena) ----------
-const BALL_R = 0.058; // "raio" de referência da câmera que viaja (largura do corpo = 2.4 × isto)
-const CAM_BOTTOM = 0.8; // metade da altura da câmera (em BALL_R) – onde ela toca as superfícies
+const BALL_R = 0.062; // largura do corpo da câmera = 2.4 × isto
+const CAM_BOTTOM = 0.66; // metade da altura da câmera (em BALL_R): onde ela toca as superfícies
 const HERO_SCALE = 2.3;
 
 const RAMP_L = 0.56; // diâmetro do rebatedor
-const RAMP_T = 0.05;
+const RAMP_T = 0.03;
 const RAMP_TILT = 0.5; // giro do disco em torno do eixo longo (mostra a face de cima)
 const RAMP_TH = -0.62;
 
-const PIN_ROWS = 6;
-const PIN_COLS = 5;
-const PIN_SX = 0.135;
-const PIN_SY = 0.118;
-const PIN_R = LENS_R;
-const HITS = [
-  [0, 2],
-  [1, 2],
-  [2, 3],
-  [3, 2],
-  [4, 2],
-  [5, 1],
+const PRINT_TILT = 1.0;
+const PRINT_W = 0.165;
+// fotos por onde a câmera passa (em zigue-zague, descendo)
+const STEPS = [
+  { x: -0.27, y: 0.31, rz: 0.1, yaw: 0.14, s: 1.0, tone: 0 },
+  { x: 0.09, y: 0.21, rz: -0.13, yaw: -0.12, s: 1.08, tone: 2 },
+  { x: -0.21, y: 0.09, rz: 0.08, yaw: 0.1, s: 0.96, tone: 4 },
+  { x: 0.17, y: -0.02, rz: -0.09, yaw: -0.16, s: 1.1, tone: 1 },
+  { x: -0.13, y: -0.14, rz: 0.14, yaw: 0.08, s: 1.0, tone: 3 },
+  { x: 0.2, y: -0.25, rz: -0.06, yaw: -0.1, s: 1.06, tone: 5 },
+  { x: -0.06, y: -0.34, rz: 0.05, yaw: 0.12, s: 1.0, tone: 2 },
+];
+// fotos de fundo (profundidade)
+const DECOR = [
+  { x: 0.47, y: 0.32, z: -0.13, rz: -0.22, yaw: -0.3, s: 0.92, tone: 5 },
+  { x: 0.46, y: 0.03, z: -0.18, rz: 0.18, yaw: -0.2, s: 0.86, tone: 1 },
+  { x: 0.42, y: -0.3, z: -0.12, rz: -0.12, yaw: -0.25, s: 0.95, tone: 3 },
+  { x: 0.1, y: -0.46, z: -0.16, rz: 0.1, yaw: 0.25, s: 0.85, tone: 0 },
 ];
 
 const HELIX_R = 0.14;
@@ -63,12 +80,13 @@ export function createWorld(canvas) {
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = THEME.env;
 
   const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 200);
   camera.position.set(0, 0, D);
 
   // ---------- luzes ----------
-  const key = new THREE.DirectionalLight('#fff0da', 2.2);
+  const key = new THREE.DirectionalLight(THEME.light, THEME.key);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.radius = 9;
@@ -78,17 +96,14 @@ export function createWorld(canvas) {
   key.shadow.camera.far = 90;
   scene.add(key, key.target);
 
-  const hemi = new THREE.HemisphereLight('#fff6ea', '#e6c8ab', 0.7);
+  const hemi = new THREE.HemisphereLight(THEME.light, '#e6d6c4', THEME.hemi);
   scene.add(hemi);
 
   // parede que só recebe sombra (o fundo real é o gradiente CSS)
-  const wallMat = new THREE.ShadowMaterial({ color: '#5a3a28', opacity: 0.22 });
+  const wallMat = new THREE.ShadowMaterial({ color: THEME.shadow, opacity: THEME.shadowOp });
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMat);
   wall.receiveShadow = true;
   scene.add(wall);
-
-  // ---------- materiais ----------
-  const lensMat = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, roughness: 0.38, metalness: 0.2 });
 
   // ---------- cena 1 · rebatedor de luz ----------
   const gRamp = new THREE.Group();
@@ -100,35 +115,27 @@ export function createWorld(canvas) {
   }
   scene.add(gRamp);
 
-  // ---------- cena 2 · pinos ----------
-  const gPins = new THREE.Group();
-  const pinCount = PIN_ROWS * PIN_COLS;
-  const pins = new THREE.InstancedMesh(buildLensGeometry(), lensMat, pinCount);
-  pins.castShadow = true;
-  pins.receiveShadow = true;
-  pins.frustumCulled = false;
-  const pinBase = [];
-  {
-    const cA = new THREE.Color('#f1c3ac');
-    const cB = new THREE.Color('#f7eddf');
-    const cC = new THREE.Color('#cdbdae');
-    const tmp = new THREE.Color();
-    for (let r = 0; r < PIN_ROWS; r++) {
-      for (let c = 0; c < PIN_COLS; c++) {
-        const i = r * PIN_COLS + c;
-        const x = (c - 2) * PIN_SX + (r % 2 ? PIN_SX * 0.5 : 0) - PIN_SX * 0.25;
-        const y = ((PIN_ROWS - 1) / 2 - r) * PIN_SY;
-        pinBase.push({ x, y, tx: 0, ty: 0, s: 1, len: 0.85 + ((r * 7 + c * 13) % 5) * 0.1 });
-        const t = r / (PIN_ROWS - 1);
-        tmp.copy(t < 0.5 ? cA.clone().lerp(cB, t * 2) : cB.clone().lerp(cC, (t - 0.5) * 2));
-        pins.setColorAt(i, tmp);
-      }
-    }
-  }
-  gPins.add(pins);
-  scene.add(gPins);
+  // ---------- cena 2 · fotos que se revelam ----------
+  const gPrints = new THREE.Group();
+  const prints = [];
+  const makePrint = (o, i, decor) => {
+    const canvas = makePhotoCanvas(i + (decor ? 20 : 0), o.tone, 320, 400);
+    const p = buildPrint(canvas, PRINT_W);
+    const wrap = new THREE.Group();
+    wrap.add(p);
+    wrap.position.set(o.x, o.y, o.z ?? 0);
+    wrap.scale.setScalar(o.s);
+    wrap.rotation.order = 'ZXY';
+    gPrints.add(wrap);
+    const item = { wrap, print: p, o, tx: 0, ty: 0, decor, seed: i * 1.7 + (decor ? 5 : 0) };
+    prints.push(item);
+    return item;
+  };
+  STEPS.forEach((o, i) => makePrint(o, i, false));
+  DECOR.forEach((o, i) => makePrint(o, i, true));
+  scene.add(gPrints);
 
-  // ---------- cena 3 · hélice + ninho ----------
+  // ---------- cena 3 · tira de filme + cartão de memória ----------
   const gHelix = new THREE.Group();
   const helixPts = [];
   const HN = 260;
@@ -141,7 +148,6 @@ export function createWorld(canvas) {
   gHelix.add(buildFilmStrip(helixCurve, 520, FILM_W, 9));
   scene.add(gHelix);
 
-  // cartão de memória no final da tira
   const gNest = new THREE.Group();
   {
     const pivot = new THREE.Group();
@@ -156,11 +162,14 @@ export function createWorld(canvas) {
   scene.add(cam);
 
   // ---------- poeira de luz ----------
-  const dustTex = radialTexture([
-    [0, 'rgba(255,255,255,1)'],
-    [0.4, 'rgba(255,255,255,0.5)'],
-    [1, 'rgba(255,255,255,0)'],
-  ], 64);
+  const dustTex = radialTexture(
+    [
+      [0, 'rgba(255,255,255,1)'],
+      [0.4, 'rgba(255,255,255,0.5)'],
+      [1, 'rgba(255,255,255,0)'],
+    ],
+    64,
+  );
   function makeDust(n, size, opacity) {
     const geo = new THREE.BufferGeometry();
     const arr = new Float32Array(n * 3);
@@ -186,23 +195,20 @@ export function createWorld(canvas) {
     hero: new THREE.Vector3(),
     rampStart: new THREE.Vector3(),
     rampEnd: new THREE.Vector3(),
-    pinHits: HITS.map(() => new THREE.Vector3()),
-    pinEntry: new THREE.Vector3(),
+    hits: STEPS.map(() => new THREE.Vector3()),
+    entry: new THREE.Vector3(),
     helixStart: new THREE.Vector3(),
     helixEnd: new THREE.Vector3(),
     nest: new THREE.Vector3(),
   };
   const state = {
-    mood: 1,
     intro: 0,
     pointer: { x: 0, y: 0, sx: 0, sy: 0, wx: 0, wy: 0, inside: false },
-    active: true,
     camT: 0,
     camY: 0,
   };
-  const moodOut = {};
   const P = new THREE.Vector3();
-  const ballWorld = new THREE.Vector3(); // posição da câmera que viaja (empurra as lentes)
+  const camWorld = new THREE.Vector3();
   const pose = { roll: 0, yaw: 0, pitch: 0 };
   let nowT = 0;
 
@@ -216,17 +222,17 @@ export function createWorld(canvas) {
     L.VW = VH_WORLD * aspect;
     L.portrait = aspect < 0.95;
     L.U = L.portrait ? L.VW * 0.95 : Math.min(L.VH, L.VW * 0.62);
-    L.UH = L.portrait ? L.U * 1.25 : L.U; // hélice/ninho um pouco maiores no celular
+    L.UH = L.portrait ? L.U * 1.25 : L.U; // tira/cartão um pouco maiores no celular
     const { VW, VH, U, UH } = L;
     const cy = L.portrait ? 0.15 * VH : 0;
     const cx = (f) => (L.portrait ? 0 : f * VW);
 
-    pos.hero.set(L.portrait ? 0 : 0.2 * VW, L.portrait ? 0.17 * VH : 0.03 * VH, 0.2 * U);
+    pos.hero.set(L.portrait ? 0 : 0.235 * VW, L.portrait ? 0.17 * VH : 0.03 * VH, 0.2 * U);
 
     gRamp.position.set(cx(-0.06), -1 * VH + cy + 0.03 * VH, 0);
     gRamp.scale.setScalar(U);
-    gPins.position.set(cx(0.14), -2 * VH + cy, 0);
-    gPins.scale.setScalar(U);
+    gPrints.position.set(cx(0.14), -2 * VH + cy, 0);
+    gPrints.scale.setScalar(U);
     gHelix.position.set(cx(-0.12), -3 * VH + cy + 0.07 * VH, 0);
     gHelix.scale.setScalar(UH);
 
@@ -234,7 +240,7 @@ export function createWorld(canvas) {
     const c = Math.cos(RAMP_TH);
     const s = Math.sin(RAMP_TH);
     const rampPt = (xl, out) => {
-      // superfície de cima da placa (girada em RAMP_TILT) + raio da esfera
+      // superfície de cima do disco (girado em RAMP_TILT) + metade da altura da câmera
       const ly = RAMP_T / 2 + BALL_R * CAM_BOTTOM;
       const oy = ly * Math.cos(RAMP_TILT);
       const oz = ly * Math.sin(RAMP_TILT);
@@ -243,12 +249,11 @@ export function createWorld(canvas) {
     rampPt(-RAMP_L * 0.5 * 0.86, pos.rampStart);
     rampPt(RAMP_L * 0.5 * 0.97, pos.rampEnd);
 
-    HITS.forEach(([r, col], i) => {
-      const b = pinBase[r * PIN_COLS + col];
-      pos.pinHits[i].set(gPins.position.x + U * b.x, gPins.position.y + U * (b.y + PIN_R + BALL_R * CAM_BOTTOM), U * 0.05);
+    STEPS.forEach((o, i) => {
+      pos.hits[i].set(gPrints.position.x + U * o.x, gPrints.position.y + U * (o.y + BALL_R * CAM_BOTTOM * 0.9 + 0.006), U * 0.11);
     });
-    pos.pinEntry.copy(pos.pinHits[0]);
-    pos.pinEntry.y += U * 0.22;
+    pos.entry.copy(pos.hits[0]);
+    pos.entry.y += U * 0.22;
 
     const hs = helixCurve.getPointAt(0);
     const he = helixCurve.getPointAt(1);
@@ -274,8 +279,7 @@ export function createWorld(canvas) {
     sc.bottom = -ext;
     sc.updateProjectionMatrix();
 
-    dustA.pts.scale.set(1, 1, 1);
-    dustA.mat.size = 0.34 * (VH / VH_WORLD) * Math.max(0.8, U / VH);
+    dustA.mat.size = 0.34 * Math.max(0.8, U / VH);
     dustB.mat.size = 1.4 * Math.max(0.8, U / VH);
   }
 
@@ -285,13 +289,12 @@ export function createWorld(canvas) {
     layout(w, h);
   }
 
-  // ---------- trajetória da esfera ----------
+  // ---------- trajetória da câmera ----------
   const EXIT = [
     { dx: 0, dy: 0, v: 0 },
     { dx: Math.cos(RAMP_TH), dy: Math.sin(RAMP_TH), v: 0.12 },
     { dx: -0.6, dy: -0.8, v: 0.1 },
   ];
-
   const ptrX = () => state.pointer.sx;
 
   // posição (mundo) + pose da câmera em cada momento da cena k (u = 0..1)
@@ -309,23 +312,23 @@ export function createWorld(canvas) {
       pose.yaw = 0.3 + ptrX() * 0.2;
       pose.pitch = -0.06;
     } else if (k === 2) {
-      const n = HITS.length;
+      const n = STEPS.length;
       const f = u * n; // segmento 0 = queda de entrada
       if (f < 1) {
         const t = f * f;
-        out.lerpVectors(pos.pinEntry, pos.pinHits[0], t);
+        out.lerpVectors(pos.entry, pos.hits[0], t);
         pose.roll = (1 - t) * 0.25;
       } else {
         const i = Math.min(n - 2, Math.floor(f - 1));
         const t = f - 1 - i;
-        out.lerpVectors(pos.pinHits[i], pos.pinHits[i + 1], t);
+        out.lerpVectors(pos.hits[i], pos.hits[i + 1], t);
         out.y += U * 0.06 * 4 * t * (1 - t);
         // gira um pouquinho a cada pulo, na direção do movimento
-        const dir = Math.sign(pos.pinHits[i + 1].x - pos.pinHits[i].x) || 1;
-        pose.roll = -dir * 0.55 * Math.sin(Math.PI * t);
+        const dir = Math.sign(pos.hits[i + 1].x - pos.hits[i].x) || 1;
+        pose.roll = -dir * 0.5 * Math.sin(Math.PI * t);
         pose.yaw = -dir * 0.25 * Math.sin(Math.PI * t) + ptrX() * 0.2;
         if (u >= 1) {
-          out.copy(pos.pinHits[n - 1]);
+          out.copy(pos.hits[n - 1]);
           pose.roll = 0;
         }
       }
@@ -338,7 +341,7 @@ export function createWorld(canvas) {
         const hp = helixCurve.getPointAt(t);
         const tg = helixCurve.getTangentAt(t);
         // a câmera anda sobre a tira de filme (face da tira aponta para +z)
-        out.set(gHelix.position.x + L.UH * hp.x, gHelix.position.y + L.UH * hp.y, L.UH * hp.z + BALL_R * L.UH * 0.5);
+        out.set(gHelix.position.x + L.UH * hp.x, gHelix.position.y + L.UH * hp.y, L.UH * 0.17); // sempre à frente da tira
         pose.roll = -0.7 * Math.tanh(tg.x * 4);
         pose.yaw = tg.x * 0.4 + ptrX() * 0.15;
         pose.pitch = 0.05;
@@ -369,7 +372,6 @@ export function createWorld(canvas) {
 
   const A = new THREE.Vector3();
   const B = new THREE.Vector3();
-
   const poseA = { roll: 0, yaw: 0, pitch: 0 };
   const poseB = { roll: 0, yaw: 0, pitch: 0 };
   const heroPose = (out, time) => {
@@ -454,59 +456,39 @@ export function createWorld(canvas) {
     cam.position.copy(P);
     cam.scale.setScalar(r);
     cam.rotation.set(pose.pitch, pose.yaw, pose.roll + (1 - ie) * -2.4);
-    ballWorld.copy(P);
+    camWorld.copy(P);
   }
 
-  // ---------- lentes reagem ao cursor e à câmera ----------
-  const dummy = new THREE.Object3D();
-  const vTilt = new THREE.Vector3();
-  const zAxis = new THREE.Vector3(0, 0, 1);
-  const q = new THREE.Quaternion();
-
-  function updatePins(time, dt) {
+  // ---------- fotos: se revelam quando a câmera pousa; viram para o cursor ----------
+  function updatePrints(st, time, dt) {
     const { U } = L;
     const ptr = state.pointer;
     const near = Math.abs(state.camT - 2) < 1.05;
     if (!near) return;
-    const k = 1 - Math.exp(-dt * 9);
-    for (let i = 0; i < pinCount; i++) {
-      const b = pinBase[i];
-      const wx = gPins.position.x + U * b.x;
-      const wy = gPins.position.y + U * b.y;
 
-      // cursor: a lente se vira para olhar o cursor
-      let dx = ptr.wx - wx;
-      let dy = ptr.wy - wy;
-      let dist = Math.hypot(dx, dy) || 1e-4;
-      const fc = ptr.inside ? Math.exp(-Math.pow(dist / (0.3 * U), 2)) : 0;
-      let tx = (dx / dist) * fc * 0.95;
-      let ty = (dy / dist) * fc * 0.95;
+    // quanto da cena 02 já foi percorrido (0..1)
+    let uu = 0;
+    if (st.kind === 'act') uu = st.scene === 2 ? st.u : st.scene > 2 ? 1 : 0;
+    else if (st.kind === 'move') uu = st.from >= 2 ? 1 : 0;
+    const f = uu * STEPS.length;
 
-      // câmera: empurra as lentes para longe quando passa perto
-      dx = ballWorld.x - wx;
-      dy = ballWorld.y - wy;
-      dist = Math.hypot(dx, dy) || 1e-4;
-      const fb = Math.exp(-Math.pow(dist / (0.16 * U), 2));
-      tx -= (dx / dist) * fb * 0.8;
-      ty -= (dy / dist) * fb * 0.8;
-
-      // respiração suave
-      tx += Math.sin(time * 0.9 + i * 0.7) * 0.06;
-      ty += Math.cos(time * 0.8 + i * 1.1) * 0.06;
-
-      b.tx += (tx - b.tx) * k;
-      b.ty += (ty - b.ty) * k;
-      b.s += (1 + fc * 0.16 - b.s) * k;
-
-      vTilt.set(b.tx, b.ty, 1).normalize();
-      q.setFromUnitVectors(zAxis, vTilt);
-      dummy.position.set(b.x, b.y, 0);
-      dummy.quaternion.copy(q);
-      dummy.scale.set(b.s, b.s, b.s * b.len);
-      dummy.updateMatrix();
-      pins.setMatrixAt(i, dummy.matrix);
-    }
-    pins.instanceMatrix.needsUpdate = true;
+    const k = 1 - Math.exp(-dt * 8);
+    prints.forEach((it, i) => {
+      const { o, wrap } = it;
+      const wx = gPrints.position.x + U * o.x;
+      const wy = gPrints.position.y + U * o.y;
+      const dx = ptr.wx - wx;
+      const dy = ptr.wy - wy;
+      const dist = Math.hypot(dx, dy) || 1e-4;
+      const fc = ptr.inside ? Math.exp(-Math.pow(dist / (0.36 * U), 2)) : 0;
+      // a foto se inclina em direção ao cursor
+      it.tx += (-(dy / dist) * fc * 0.32 - it.tx) * k;
+      it.ty += ((dx / dist) * fc * 0.32 - it.ty) * k;
+      const sway = Math.sin(time * 0.8 + it.seed) * 0.03;
+      wrap.rotation.set(-PRINT_TILT + it.tx + sway, o.yaw + it.ty, o.rz + Math.cos(time * 0.6 + it.seed) * 0.015);
+      const d = it.decor ? 1 : smooth(i + 0.7, i + 1.0, f);
+      setDevelop(it.print, d);
+    });
   }
 
   // ---------- poeira ----------
@@ -533,7 +515,7 @@ export function createWorld(canvas) {
   function render(p, time) {
     const dt = Math.min(0.05, time - last || 0.016);
     last = time;
-    const { VW, VH, U } = L;
+    const { VW, VH } = L;
 
     const st = stageAt(p);
     state.camT = st.camT;
@@ -552,17 +534,9 @@ export function createWorld(canvas) {
     camera.position.set(ptr.sx * 1.4, camY + ptr.sy * 0.9, D);
     camera.lookAt(0, camY, 0);
 
-    // mood
-    const m = sampleMood(state.mood, moodOut);
-    key.color.copy(m.light);
-    key.intensity = m.key;
-    key.position.set(m.dirX * 60, camY + m.dirY * 60, 60);
+    // luz e parede acompanham a câmera
+    key.position.set(THEME.dir[0] * 60, camY + THEME.dir[1] * 60, 60);
     key.target.position.set(0, camY, 0);
-    hemi.intensity = m.hemi;
-    hemi.color.copy(m.light);
-    scene.environmentIntensity = m.env;
-    wallMat.color.copy(m.shadow);
-    wallMat.opacity = m.shadowOp;
     wall.position.x = 0;
     wall.position.y = camY;
 
@@ -570,7 +544,7 @@ export function createWorld(canvas) {
     gRamp.children[0].position.y = Math.sin(time * 0.8) * 0.004;
 
     placeCamera(st, time);
-    updatePins(time, dt);
+    updatePrints(st, time, dt);
 
     dustA.pts.position.set(0, camY, 0);
     dustB.pts.position.set(0, camY, 0);
@@ -584,13 +558,7 @@ export function createWorld(canvas) {
     render,
     resize,
     state,
-    dbg: { scene, gRamp, gPins, gHelix, gNest, cam, dustA, dustB, wall, key },
-    setMood(m) {
-      state.mood = m;
-    },
-    getMoodCss() {
-      return sampleMood(state.mood, moodOut).css;
-    },
+    dbg: { scene, gRamp, gPrints, gHelix, gNest, cam, dustA, dustB, wall, key },
     setIntro(v) {
       state.intro = v;
     },

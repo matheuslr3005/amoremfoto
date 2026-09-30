@@ -10,7 +10,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { createWorld } from './gl.js';
 import { createStory } from './story.js';
 import { createGallery } from './gallery.js';
-import { sampleMood, MOODS } from './mood.js';
 import { clamp, stageAt, SCENE_P } from './timeline.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -55,38 +54,7 @@ new ResizeObserver(() => {
 }).observe(sticky);
 measure();
 
-// ───────────── hora do dia ─────────────
-const tod = { v: 1 };
-const todBtns = [...document.querySelectorAll('.tod__btn')];
-const dial = document.querySelector('.dial__range');
-const dialOut = document.querySelector('.dial__out');
 const beams = [...document.querySelectorAll('.bg__beam')];
-const moodOut = {};
-let todTween = null;
-
-function applyMood() {
-  const m = sampleMood(tod.v, moodOut);
-  for (const k in m.css) root.style.setProperty(k, m.css[k]);
-  if (world) world.setMood(tod.v);
-  const idx = Math.round(tod.v);
-  todBtns.forEach((b, i) => b.classList.toggle('is-on', i === idx));
-  dialOut.textContent = MOODS[idx].label;
-  if (document.activeElement !== dial) dial.value = tod.v;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = m.css['--bg2'];
-}
-function setMood(v, animate = true) {
-  todTween?.kill();
-  if (!animate) {
-    tod.v = v;
-    applyMood();
-    return;
-  }
-  todTween = gsap.to(tod, { v, duration: 1.5, ease: 'power3.inOut', onUpdate: applyMood });
-}
-todBtns.forEach((b) => b.addEventListener('click', () => setMood(Number(b.dataset.mood))));
-dial.addEventListener('input', () => setMood(Number(dial.value), false));
-applyMood();
 
 // ───────────── ponteiro ─────────────
 const ptr = { x: 0, y: 0 };
@@ -261,7 +229,6 @@ Promise.all([
 if (import.meta.env.DEV || location.search.includes('debug')) window.__amor = {
   world,
   lenis,
-  setMood,
   M,
   // depuração: assenta a inércia imediatamente
   snap() {

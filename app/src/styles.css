@@ -1,11 +1,11 @@
 :root {
-  /* atualizadas em tempo real pela "hora do dia" (mood.js) */
-  --bg1: #f9f0e5;
-  --bg2: #f1dfca;
-  --bg3: #e6c9ad;
-  --ink: #2a1f19;
-  --accent: #c4633f;
-  --beam: 0.7;
+  /* paleta única: branco quente e limpo, com terracota só como acento */
+  --bg1: #f8f5f0;
+  --bg2: #efe9e0;
+  --bg3: #e5dccf;
+  --ink: #221b16;
+  --accent: #b5573a;
+  --beam: 0.5;
 
   --ink-soft: color-mix(in srgb, var(--ink) 66%, transparent);
   --ink-faint: color-mix(in srgb, var(--ink) 14%, transparent);
@@ -159,14 +159,15 @@ em {
   place-content: center;
   justify-items: center;
   gap: 22px;
-  background: radial-gradient(130% 95% at 15% 0%, #faf1e6, #f1dfca 60%, #e6c9ad);
+  background: radial-gradient(130% 95% at 15% 0%, #f8f5f0, #efe9e0 60%, #e5dccf);
 }
 .loader__orb {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffe6a0, #ffa35c 55%, #ee5f7a);
-  box-shadow: 0 0 60px 12px rgba(255, 176, 100, 0.45);
+  /* uma lente: aro cromado, vidro escuro e um reflexo */
+  background: radial-gradient(circle at 34% 30%, #ffffff 0 5%, transparent 6%), radial-gradient(circle at 50% 50%, #1a1430 0 34%, #0d0d14 46%, #b9b6b0 48% 60%, #6a6862 62% 70%, #2b2926 72%);
+  box-shadow: 0 10px 30px -8px rgba(34, 27, 22, 0.35);
   animation: pulse 1.6s ease-in-out infinite;
 }
 .loader__txt {
@@ -177,8 +178,8 @@ em {
 }
 @keyframes pulse {
   50% {
-    transform: scale(1.14);
-    box-shadow: 0 0 80px 22px rgba(255, 176, 100, 0.55);
+    transform: scale(1.1);
+    box-shadow: 0 16px 36px -8px rgba(34, 27, 22, 0.28);
   }
 }
 
@@ -207,38 +208,6 @@ em {
   display: flex;
   align-items: center;
   gap: 14px;
-}
-.tod {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--paper) 42%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 0 0 1px var(--ink-faint) inset;
-}
-.tod__label {
-  padding: 0 8px 0 12px;
-  font: 600 0.62rem/1 var(--font-body);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.tod__btn {
-  padding: 8px 13px;
-  border-radius: 999px;
-  font: 600 0.72rem/1 var(--font-body);
-  color: var(--ink-soft);
-  transition: background 0.4s var(--ease), color 0.4s;
-}
-.tod__btn:hover {
-  color: var(--ink);
-}
-.tod__btn.is-on {
-  background: var(--ink);
-  color: var(--paper);
 }
 .menu-btn {
   position: relative;
@@ -577,86 +546,6 @@ html.is-ready .reveal,
   display: inline-block;
   opacity: 0.14;
   white-space: pre;
-}
-.dial {
-  margin-top: 6svh;
-  max-width: 640px;
-}
-.dial__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  margin-bottom: 18px;
-  font: 600 0.7rem/1.2 var(--font-body);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-.dial__out {
-  font: italic 300 1.6rem/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--accent);
-}
-.dial__track {
-  position: relative;
-}
-.dial__range {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 44px;
-  background: transparent;
-  cursor: grab;
-  display: block;
-}
-.dial__range:active {
-  cursor: grabbing;
-}
-.dial__range::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #dfe9ef, #f4e2c8 50%, #e9a58a);
-  box-shadow: 0 0 0 1px var(--ink-faint) inset;
-}
-.dial__range::-moz-range-track {
-  height: 8px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #dfe9ef, #f4e2c8 50%, #e9a58a);
-  box-shadow: 0 0 0 1px var(--ink-faint) inset;
-}
-.dial__range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 38px;
-  height: 38px;
-  margin-top: -15px;
-  border-radius: 50%;
-  border: 0;
-  background: radial-gradient(circle at 35% 30%, #ffe6a0, #ffa35c 55%, #ee5f7a);
-  box-shadow: 0 0 0 6px rgba(255, 176, 100, 0.25), 0 8px 24px rgba(180, 90, 40, 0.35);
-  transition: transform 0.4s var(--ease);
-}
-.dial__range::-moz-range-thumb {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  border: 0;
-  background: radial-gradient(circle at 35% 30%, #ffe6a0, #ffa35c 55%, #ee5f7a);
-  box-shadow: 0 0 0 6px rgba(255, 176, 100, 0.25), 0 8px 24px rgba(180, 90, 40, 0.35);
-}
-.dial__range:active::-webkit-slider-thumb {
-  transform: scale(1.12);
-}
-.dial__ticks {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
-  font: 500 0.75rem var(--font-body);
-  color: var(--ink-soft);
-}
-.dial__ticks i {
-  font-style: normal;
 }
 .facts {
   list-style: none;
@@ -1008,18 +897,11 @@ html.is-ready .reveal,
   :root {
     --dock-h: 56px;
   }
-  .tod__label {
-    display: none;
-  }
   .brand {
     font-size: 1.1rem;
   }
   .topbar__right {
     gap: 8px;
-  }
-  .tod__btn {
-    padding: 8px 9px;
-    font-size: 0.64rem;
   }
   .dock__links,
   .dock__brand span {
@@ -1126,7 +1008,6 @@ html.is-ready .reveal,
 .facts b,
 .gallery__title,
 .gallery__count b,
-.dial__out,
 .brand {
   font-variation-settings: 'opsz' 72;
 }
