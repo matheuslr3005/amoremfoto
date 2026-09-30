@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 
-// Publicação no GitHub Pages: o build sai em /docs com caminhos relativos
-// (funciona em https://<usuario>.github.io/amoremfoto/ e em domínio próprio).
+// Código-fonte em /app · build em /docs (caminhos relativos, funciona em qualquer subpasta do GitHub Pages).
 export default defineConfig({
+  root: 'app',
   base: './',
-  build: { outDir: 'docs', emptyOutDir: true, chunkSizeWarningLimit: 900 },
+  build: { outDir: '../docs', emptyOutDir: true, chunkSizeWarningLimit: 900 },
 });
