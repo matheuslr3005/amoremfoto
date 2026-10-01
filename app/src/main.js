@@ -10,6 +10,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { createWorld } from './gl.js';
 import { createStory } from './story.js';
 import { createGallery } from './gallery.js';
+import { initSite, initServices } from './services.js';
 import { clamp, stageAt, SCENE_P } from './timeline.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -160,6 +161,10 @@ ScrollTrigger.create({
   start: 'top 70%',
   onEnter: () => document.querySelector('.cta').classList.add('is-in'),
 });
+
+// ───────────── conteúdo do estúdio ─────────────
+initSite();
+initServices();
 
 // ───────────── galeria ─────────────
 createGallery();

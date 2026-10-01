@@ -492,7 +492,7 @@ function labelTexture() {
     g.fillStyle = '#2f343c';
     g.fillRect(0, 0, c.width, c.height);
     // faixa de acento
-    g.fillStyle = '#b5573a';
+    g.fillStyle = '#8f5a4e';
     g.fillRect(0, 0, c.width, 14);
     g.fillStyle = '#f2eee6';
     g.textAlign = 'left';

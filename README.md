@@ -1,6 +1,6 @@
-# Amor em Foto — site (proposta)
+# Amor em Foto Estúdio — site (proposta)
 
-Site de fotografia newborn em **luz natural**, com história 3D guiada pelo scroll, galeria horizontal e interações no cursor. Paleta única e limpa: branco quente com terracota só como acento.
+Site do estúdio de fotografia em **luz natural** (Canoas, RS): gestantes, newborn, acompanhamento do bebê, infantil, corporativo, eventos, locação do estúdio e mentoria para fotógrafos. História 3D guiada pelo scroll, lista interativa de serviços, galeria horizontal e interações no cursor. Paleta tirada do logo: marrom-rosado, rosé claro e branco quente.
 
 ## Rodar
 
@@ -22,6 +22,8 @@ Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Font
 
 ## Trocar o conteúdo
 
+**Dados do estúdio e serviços: `app/src/site.js`** — WhatsApp, Instagram, e-mail, endereço e a lista de serviços (nome, descrição, opções). Todos os links do site (inclusive as mensagens prontas de WhatsApp por serviço) são gerados a partir dali. Os valores atuais de WhatsApp, Instagram e e-mail são **provisórios**.
+
 | O quê | Onde |
 | --- | --- |
 | Textos, links (WhatsApp, Instagram, e-mail) | `app/index.html` — procure `wa.me/5500000000000`, `@amoremfoto`, `contato@exemplo.com` |
@@ -31,7 +33,7 @@ Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Font
 | Tipografia | `app/src/main.js` (imports `@fontsource…`) e `--font-display` / `--font-body` em `app/src/styles.css` |
 
 ## Marca
-Sem logo por enquanto: `amor em foto` (topo-esquerda) é só texto provisório. Quando houver logo/tipografia da marca, trocar em `.brand` (`index.html`) e nas variáveis do `:root`.
+O logo está em `app/public/logo.png` (recortado de uma captura pequena, 97 px): fica nítido no topo e na tela de carregamento, mas borra se ampliado. Quando houver o arquivo original (SVG ou PNG grande), basta substituir `logo.png` e `favicon.png` na mesma pasta. Cores no `:root` de `app/src/styles.css`.
 
 Debug: abra a página com `?debug` para expor `window.__amor`.
 

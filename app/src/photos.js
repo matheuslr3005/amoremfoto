@@ -6,20 +6,20 @@
 // ─────────────────────────────────────────────────────────────
 
 export const PHOTOS = [
-  { title: 'Primeiro sono', tag: 'Newborn · 8 dias', tone: 0 },
-  { title: 'Mãozinhas', tag: 'Detalhes · 5 dias', tone: 2 },
-  { title: 'Luz da janela', tag: 'Newborn · 11 dias', tone: 4 },
-  { title: 'Colo de mãe', tag: 'Família · 9 dias', tone: 1 },
-  { title: 'Ninho', tag: 'Newborn · 7 dias', tone: 3 },
-  { title: 'Pezinhos', tag: 'Detalhes · 6 dias', tone: 2 },
-  { title: 'Sonhando', tag: 'Newborn · 12 dias', tone: 5 },
-  { title: 'Bem-vindo', tag: 'Newborn · 10 dias', tone: 0 },
+  { title: 'Primeiro sono', tag: 'Newborn', tone: 0 },
+  { title: 'A espera', tag: 'Gestante', tone: 2 },
+  { title: 'Brincar', tag: 'Infantil', tone: 4 },
+  { title: 'Retrato', tag: 'Corporativo', tone: 5 },
+  { title: 'Mãozinhas', tag: 'Newborn', tone: 3 },
+  { title: 'Celebrar', tag: 'Evento', tone: 1 },
+  { title: 'Mês a mês', tag: 'Acompanhamento', tone: 2 },
+  { title: 'Luz da janela', tag: 'Gestante', tone: 0 },
 ];
 
 export const TONES = [
-  ['#f7e8d6', '#eac7a6', '#c99274'],
+  ['#f8e9e3', '#e9c6bb', '#b07468'],
   ['#f0f1e6', '#d3dcc4', '#a4b28f'],
-  ['#faeae4', '#f1c8bd', '#dc9f92'],
+  ['#fbece8', '#f0cdc6', '#d49b92'],
   ['#f2ebe0', '#ddd0bf', '#b9a58c'],
   ['#f8ebd3', '#f1cd94', '#d99e5c'],
   ['#ecf0f2', '#cdd8e0', '#a2b3c1'],
