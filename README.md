@@ -26,7 +26,7 @@ Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Font
 
 | O quê | Onde |
 | --- | --- |
-| Textos, links (WhatsApp, Instagram, e-mail) | `app/index.html` — procure `wa.me/5500000000000`, `@amoremfoto`, `contato@exemplo.com` |
+| Textos das seções | `app/index.html` (os contatos e serviços ficam em `app/src/site.js`) |
 | **Fotos reais** | `app/src/photos.js` — preencha `src: '/fotos/arquivo.jpg'` em cada item (ponha os arquivos em `app/public/fotos/`). Sem `src`, gera uma imagem abstrata provisória |
 | Cores do site | `:root` em `app/src/styles.css` (fundo, texto, acento); luz 3D em `THEME` no topo de `app/src/gl.js` |
 | Duração/ordem das cenas do scroll | `SEGS` em `app/src/timeline.js` (e a altura em `.story` no CSS, hoje `720svh`) |
