@@ -1,41 +1,59 @@
-# Amor em Foto Estúdio — site (proposta)
+# Amor em Foto Estúdio — site v2 (3D)
 
-Site do estúdio de fotografia em **luz natural** (Canoas, RS): gestantes, newborn, acompanhamento do bebê, infantil, corporativo, eventos, locação do estúdio e mentoria para fotógrafos. História 3D guiada pelo scroll, lista interativa de serviços, galeria horizontal e interações no cursor. Paleta tirada do logo: marrom-rosado, rosé claro e branco quente.
+Site do estúdio de fotografia em **luz natural** (Canoas, RS). Redesenho completo: uma **viagem de câmera 3D guiada pelo scroll**, com a flor-coração do logo, um túnel de fotos em arco ("janelas"), um anel giratório de serviços e a flor se abrindo de novo no contato.
+
+Stack: **React 19 + TypeScript + Vite · React Three Fiber (three.js) + drei + postprocessing · motion (Framer Motion) · Lenis**.
+Tudo o que é 3D é gerado por código (sem arquivos de modelo). Fontes self-hosted: Instrument Serif + Hanken Grotesk.
 
 ## Rodar
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # código em /app → build em /docs (pronto para o GitHub Pages)
+npm run dev        # http://localhost:5173
+npm run build      # typecheck + código em /app → build em /docs (pronto para o GitHub Pages)
+npm run typecheck
 ```
 
-Stack: Vite + Three.js (WebGL) + GSAP/ScrollTrigger + Lenis (scroll suave). Fontes self-hosted (Fraunces + Manrope) — **provisórias**, sem marca definida ainda.
+## Como funciona
 
-## O que tem
+O site é **um mundo 3D só**, com a câmera andando pelo caminho conforme o scroll. Cada seção do HTML é um "estágio" (`data-stage`) e ocupa um trecho do scroll.
 
-- **História 3D em scroll** (`app/src/gl.js`, `app/src/timeline.js`): uma **câmera de filme** atravessa 3 cenas — rebatedor de luz → fotos instantâneas que se **revelam** quando ela pousa → tira de filme em espiral — e termina num **cartão de memória**. Inspirada no vídeo de referência. Todos os objetos são feitos de primitivas e texturas geradas em `app/src/props.js` (sem arquivos de modelo).
-- **A câmera do hero olha para o cursor**, e na cena "Revelar" as fotos se inclinam na direção do cursor.
-- **Luz de janela + poeira de luz + grão** no fundo; foco de luz seguindo o mouse.
-- **Galeria horizontal** com tilt 3D, paralaxe interna e lightbox (`app/src/gallery.js`).
-- Menu em tela cheia, botões magnéticos, responsivo (mobile), `prefers-reduced-motion`, fallback sem WebGL.
+| Estágio | O que acontece | Onde |
+| --- | --- | --- |
+| Hero | Flor 3D (pétalas paramétricas + coração) reage ao cursor; a câmera sobrevoa a flor | `three/Bloom.tsx`, `sections/Hero.tsx` |
+| Jornada | Túnel de janelas em arco com fotos que se "revelam" ao se aproximar; mira de câmera (viewfinder) com contador | `three/Tunnel.tsx`, `sections/Journey.tsx` |
+| A luz | Manifesto com palavras que acendem pelo scroll + contadores | `sections/Manifesto.tsx` |
+| Serviços | A câmera entra num anel de cartões 3D que gira a cada serviço; texto, opções e CTA de WhatsApp por serviço | `three/ServiceRing.tsx`, `sections/Services.tsx` |
+| Para fotógrafos | Locação e mentoria em cartões com tilt 3D + faixa de texto que acelera com o scroll | `sections/Studio.tsx` |
+| Contato | A câmera chega a uma segunda flor que se abre | `sections/Contact.tsx` |
+
+- **Caminho da câmera:** `app/src/lib/timeline.ts` (scroll → progresso de cada estágio → pose da câmera). Para mudar a ordem ou a duração, ajuste as alturas das seções em `styles.css` (`.journey`, `.services`, `.contact`) e a constante `SERVICES_VH_PER_ITEM`.
+- **Câmera + cursor:** `three/Rig.tsx` (parallax do cursor, leve inclinação pela velocidade do scroll).
+- **Visual 3D:** `three/Scene.tsx` (luzes, névoa, flores, pétalas caindo, feixes de luz, pós-processamento).
 
 ## Trocar o conteúdo
 
-**Dados do estúdio e serviços: `app/src/site.js`** — WhatsApp, Instagram, e-mail, endereço e a lista de serviços (nome, descrição, opções). Todos os links do site (inclusive as mensagens prontas de WhatsApp por serviço) são gerados a partir dali. Os valores atuais de WhatsApp, Instagram e e-mail são **provisórios**.
+**Tudo em `app/src/config/site.ts`:** WhatsApp, Instagram, e-mail, endereço, serviços (nome, texto, opções, mensagem pronta de WhatsApp), capítulos da jornada, manifesto e fotos do túnel. Todos os links do site saem dali.
 
-| O quê | Onde |
-| --- | --- |
-| Textos das seções | `app/index.html` (os contatos e serviços ficam em `app/src/site.js`) |
-| **Fotos reais** | `app/src/photos.js` — preencha `src: '/fotos/arquivo.jpg'` em cada item (ponha os arquivos em `app/public/fotos/`). Sem `src`, gera uma imagem abstrata provisória |
-| Cores do site | `:root` em `app/src/styles.css` (fundo, texto, acento); luz 3D em `THEME` no topo de `app/src/gl.js` |
-| Duração/ordem das cenas do scroll | `SEGS` em `app/src/timeline.js` (e a altura em `.story` no CSS, hoje `720svh`) |
-| Tipografia | `app/src/main.js` (imports `@fontsource…`) e `--font-display` / `--font-body` em `app/src/styles.css` |
+Os valores atuais de **WhatsApp, Instagram e e-mail são provisórios** — troque antes de publicar.
 
-## Marca
-O logo está em `app/public/logo.png` (recortado de uma captura pequena, 97 px): fica nítido no topo e na tela de carregamento, mas borra se ampliado. Quando houver o arquivo original (SVG ou PNG grande), basta substituir `logo.png` e `favicon.png` na mesma pasta. Cores no `:root` de `app/src/styles.css`.
+### Fotos reais
+Hoje as fotos são **provisórias** (cenas pintadas por código em `lib/photos.ts`). Para usar as fotos reais:
 
-Debug: abra a página com `?debug` para expor `window.__amor`.
+1. Coloque os arquivos em `app/public/fotos/`.
+2. Em `config/site.ts`, preencha `src: 'fotos/arquivo.jpg'` no serviço (`SERVICES`) ou na foto (`PHOTOS`).
+
+Proporção ideal das fotos: **retrato ~3:4** (elas são recortadas em arco). Sem `src`, o site usa a foto provisória.
+
+### Marca
+`app/public/logo.png` (97 px, recortado de uma captura pequena) aparece no cabeçalho e na abertura. O selo giratório da hero e do contato é uma **recriação em vetor** do logo (`ui/Seal.tsx`), assim como a flor 3D. Com o arquivo original (SVG/PNG grande) é só trocar `logo.png` e `favicon.png` em `app/public/`.
+
+## Desempenho e acessibilidade
+- Celulares e máquinas com poucos núcleos usam o modo **lite**: menos partículas, sem pós-processamento, resolução menor.
+- `prefers-reduced-motion`: sem rolagem suave, sem flutuação e sem parallax.
+- Sem WebGL (ou se o 3D falhar): o site continua completo, só com HTML/CSS.
+- Os serviços também ficam em lista navegável por teclado ao lado do anel 3D.
+- Depuração: abra a página com `?debug` para expor `window.__amor`.
 
 ## Publicar (GitHub Pages)
-O build fica commitado em `docs/`, e o `index.html` da raiz redireciona para ele — então funciona tanto servindo a **raiz** quanto a pasta **/docs** da branch (Settings → Pages → Deploy from a branch). URL: `https://<usuario>.github.io/amoremfoto/`. Depois de mudar o código em `app/`, rode `npm run build` e commite a pasta `docs/` de novo.
+O build fica commitado em `docs/`, e o `index.html` da raiz redireciona para ele — funciona servindo a **raiz** ou a pasta **/docs** da branch. Depois de mudar o código em `app/`, rode `npm run build` e commite `docs/` de novo.
