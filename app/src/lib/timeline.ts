@@ -74,7 +74,7 @@ export const RING = {
 const RING_STEP = (Math.PI * 2) / RING.count;
 
 /** Quanto o cartão ativo fica deslocado para a direita (abre espaço para o texto à esquerda). */
-export const ringYaw = (aspect: number) => (aspect < 0.9 ? 0 : Math.min(0.3, Math.max(0.12, 0.12 + (aspect - 1.2) * 0.18)));
+export const ringYaw = (aspect: number) => (aspect < 0.9 ? 0 : Math.min(0.22, Math.max(0.1, 0.1 + (aspect - 1.2) * 0.14)));
 
 export const CONTACT_BLOOM = new Vector3(0, -0.5, -146);
 

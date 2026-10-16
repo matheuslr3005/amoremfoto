@@ -1,11 +1,9 @@
-import { EffectComposer, Bloom as GlowEffect, Noise, Vignette } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
+import { EffectComposer, Bloom as GlowEffect, Vignette } from '@react-three/postprocessing';
 
-/** Pós-processamento leve: brilho nas luzes, vinheta quente e um grão fino de filme. */
+/** Pós-processamento: antialiasing (MSAA), brilho só nas luzes mais fortes e vinheta quente. */
 export const Effects = () => (
-  <EffectComposer multisampling={0}>
-    <GlowEffect intensity={0.7} luminanceThreshold={0.62} luminanceSmoothing={0.25} mipmapBlur />
+  <EffectComposer multisampling={4}>
+    <GlowEffect intensity={0.55} luminanceThreshold={0.82} luminanceSmoothing={0.2} mipmapBlur />
     <Vignette offset={0.28} darkness={0.7} />
-    <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.6} />
   </EffectComposer>
 );

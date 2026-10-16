@@ -12,7 +12,7 @@ const PALETTE = ['#e8bfb0', '#cf9a89', '#f6dccf', '#b8806f', '#ffd9b8'];
 export const PetalField = ({ count, still = false }: PetalFieldProps) => {
   const mesh = useRef<InstancedMesh>(null);
   const dummy = useMemo(() => new Object3D(), []);
-  const geo = useMemo(() => petalGeometry(1, 0.72, 10, 6), []);
+  const geo = useMemo(() => petalGeometry(1, 0.72, 16, 8), []);
 
   const data = useMemo(() => {
     const rnd = seeded(11);

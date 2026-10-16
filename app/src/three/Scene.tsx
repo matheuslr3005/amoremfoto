@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useMemo, useRef, type ReactNode } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import type { Group } from 'three';
 import { Environment, Lightformer, Sparkles } from '@react-three/drei';
 import { Bloom } from './Bloom';
 import { Beam, Halo } from './Beam';
@@ -15,16 +16,26 @@ import { intro } from '../lib/intro';
 
 export const BG = '#160e0d';
 
+/** Mostra os filhos só quando `when()` é verdadeiro (checado a cada frame). */
+const Reveal = ({ when, children }: { when: () => boolean; children: ReactNode }) => {
+  const ref = useRef<Group>(null);
+  useFrame(() => {
+    if (ref.current) ref.current.visible = when();
+  });
+  return <group ref={ref}>{children}</group>;
+};
+
 type SceneProps = { still: boolean; lite: boolean };
 
 const heroOpen = () => 0.5 + 0.14 * intro.value + 0.36 * smoothstep(0.02, 0.92, world.tl.hero);
 const heroHeart = () => 1 - smoothstep(0.22, 0.7, world.tl.hero);
+const contactVisible = () => world.tl.services > 0.9;
 const contactOpen = () => 0.18 + 0.82 * smoothstep(0.05, 0.85, world.tl.contact);
 
 export const Scene = ({ still, lite }: SceneProps) => {
   const portrait = useThree((s) => s.size.width / s.size.height < 0.9);
   const contactPos = useMemo<[number, number, number]>(
-    () => (portrait ? [0, CONTACT_BLOOM.y + 1.4, CONTACT_BLOOM.z] : [2.6, CONTACT_BLOOM.y, CONTACT_BLOOM.z]),
+    () => (portrait ? [0, CONTACT_BLOOM.y + 2.1, CONTACT_BLOOM.z] : [2.6, CONTACT_BLOOM.y, CONTACT_BLOOM.z]),
     [portrait],
   );
 
@@ -53,7 +64,7 @@ export const Scene = ({ still, lite }: SceneProps) => {
 
       {/* viagem */}
       <PetalField count={lite ? 70 : 150} still={still} />
-      <Sparkles count={lite ? 120 : 280} scale={[20, 11, 165]} position={[0, 0, -72]} size={3.2} speed={still ? 0 : 0.25} color="#ffdcb8" opacity={0.75} />
+      <Sparkles count={lite ? 50 : 110} scale={[20, 11, 165]} position={[0, 0, -72]} size={2.6} speed={still ? 0 : 0.12} color="#ffdcb8" opacity={0.5} noise={0.3} />
       <Tunnel still={still} />
       <Beam position={[2, 3, -44]} rotation={[0, 0.5, -0.5]} size={[3, 18]} opacity={0.1} phase={1} />
       <ServiceRing />
@@ -61,9 +72,11 @@ export const Scene = ({ still, lite }: SceneProps) => {
       <Beam position={[3.5, 3, -126]} rotation={[0, -0.3, -0.45]} size={[3, 16]} opacity={0.12} phase={4} />
 
       {/* contato */}
-      <Halo position={[contactPos[0], contactPos[1] + 1, contactPos[2] - 3]} size={12} opacity={0.4} />
-      <Bloom getOpen={contactOpen} position={contactPos} scale={1.7} still={still} />
-      <pointLight position={[contactPos[0], 1.6, contactPos[2] + 4]} color="#ffbfa6" intensity={10} distance={14} decay={2} />
+      <Reveal when={contactVisible}>
+        <Halo position={[contactPos[0], contactPos[1] + 1, contactPos[2] - 3]} size={12} opacity={0.4} />
+        <Bloom getOpen={contactOpen} position={contactPos} scale={1.7} still={still} />
+        <pointLight position={[contactPos[0], 1.6, contactPos[2] + 4]} color="#ffbfa6" intensity={10} distance={14} decay={2} />
+      </Reveal>
 
       {!lite && <Effects />}
     </>

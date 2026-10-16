@@ -122,8 +122,9 @@ em,
   display: inline-block;
   overflow: hidden;
   vertical-align: top;
-  padding-bottom: 0.12em;
-  margin-bottom: -0.12em;
+  /* folga nos quatro lados (compensada com margem negativa) para não cortar serifas e itálicos */
+  padding: 0.08em 0.1em 0.16em;
+  margin: -0.08em -0.1em -0.16em;
 }
 
 /* ---------- botões ---------- */
@@ -547,6 +548,10 @@ em,
 }
 .hero__spacer {
   display: none;
+}
+.hero__word .mask {
+  padding: 0.12em 0.18em 0.2em;
+  margin: -0.12em -0.18em -0.2em;
 }
 .hero__copy {
   grid-row: 3;

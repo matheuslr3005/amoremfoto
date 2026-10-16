@@ -20,9 +20,9 @@ const PALETTES: Record<PhotoKind, Palette> = {
   mentor: ['#f2e4da', '#dcb8a4', '#8b5a4d', '#2f2a31'],
 };
 
-const W = 520;
-const H = 700;
-const LOW = 7; // fator de redução: quanto maior, mais "desfocada"
+const W = 640;
+const H = 860;
+const LOW = 4; // a cena é pintada em 1/4 da resolução e ampliada em etapas (sem blocos)
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -134,35 +134,56 @@ const paintScene = (g: Ctx, kind: PhotoKind, rnd: () => number, w: number, h: nu
   g.fillRect(0, 0, w, h);
 };
 
+const canvasOf = (w: number, h: number) => {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+};
+
+/** Amplia em etapas de 2x com suavização: evita o serrilhado/blocos de uma ampliação única. */
+const upscale = (src: HTMLCanvasElement, w: number, h: number) => {
+  let cur = src;
+  while (cur.width * 2 < w) {
+    const next = canvasOf(cur.width * 2, cur.height * 2);
+    const g = next.getContext('2d');
+    if (!g) break;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  const out = canvasOf(w, h);
+  const g = out.getContext('2d');
+  if (g) {
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cur, 0, 0, w, h);
+  }
+  return out;
+};
+
 export const makePhotoCanvas = (kind: PhotoKind, seed: number): HTMLCanvasElement => {
   const rnd = seeded(seed + 7);
-
-  const low = document.createElement('canvas');
-  low.width = Math.round(W / LOW);
-  low.height = Math.round(H / LOW);
+  const low = canvasOf(Math.round(W / LOW), Math.round(H / LOW));
   const lg = low.getContext('2d');
-
-  const out = document.createElement('canvas');
-  out.width = W;
-  out.height = H;
-  const g = out.getContext('2d');
-  if (!lg || !g) return out;
-
+  if (!lg) return low;
   paintScene(lg, kind, rnd, low.width, low.height);
-  g.imageSmoothingEnabled = true;
-  g.imageSmoothingQuality = 'high';
-  g.drawImage(low, 0, 0, W, H);
 
-  // grão de filme
-  const grain = g.getImageData(0, 0, W, H);
-  const d = grain.data;
+  const out = upscale(low, W, H);
+  const g = out.getContext('2d');
+  if (!g) return out;
+
+  // só um dither bem fraco: quebra as faixas dos degradês sem virar "estática"
+  const px = g.getImageData(0, 0, W, H);
+  const d = px.data;
   for (let i = 0; i < d.length; i += 4) {
-    const n = (rnd() - 0.5) * 16;
+    const n = (rnd() - 0.5) * 3;
     d[i] = (d[i] ?? 0) + n;
     d[i + 1] = (d[i + 1] ?? 0) + n;
     d[i + 2] = (d[i + 2] ?? 0) + n;
   }
-  g.putImageData(grain, 0, 0);
+  g.putImageData(px, 0, 0);
   return out;
 };
 
@@ -189,7 +210,7 @@ export const photoTexture = (kind: PhotoKind, seed: number, src?: string): Textu
 
   const tex = src ? loader.load(src) : new CanvasTexture(makePhotoCanvas(kind, seed));
   tex.colorSpace = SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = 16;
   tex.minFilter = LinearMipmapLinearFilter;
   textureCache.set(key, tex);
   return tex;

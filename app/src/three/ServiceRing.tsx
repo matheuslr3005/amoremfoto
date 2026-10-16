@@ -24,7 +24,9 @@ const Card = ({ index }: CardProps) => {
     const g = group.current;
     if (!g) return;
     const weight = 1 - Math.min(1, Math.abs(index - world.service));
-    const s = damp(g.scale.x, (0.84 + 0.26 * weight) * (world.portrait ? 0.78 : 1), 8, dt);
+    // ao sair do anel, os cartões encolhem no lugar (não atravessam a câmera e não ficam atrás do texto seguinte)
+    const leaving = 1 - smoothstep(0, 0.07, world.tl.studio);
+    const s = damp(g.scale.x, (0.84 + 0.26 * weight) * (world.portrait ? 0.68 : 1) * leaving, 8, dt);
     g.scale.setScalar(s);
     material.current?.color.setScalar(0.28 + 0.72 * smoothstep(0, 1, weight));
   });
@@ -35,8 +37,8 @@ const Card = ({ index }: CardProps) => {
       <ArchPhoto
         ref={group}
         texture={texture}
-        width={3}
-        height={4.1}
+        width={2.8}
+        height={3.8}
         materialRef={material}
       />
     </group>
@@ -46,11 +48,14 @@ const Card = ({ index }: CardProps) => {
 /** Anel de serviços: cartões em arco girando em volta da câmera, que fica parada no centro. */
 export const ServiceRing = () => {
   const ring = useRef<Group>(null);
+  const lines = useRef<Group>(null);
 
   useFrame(() => {
     const r = ring.current;
     if (!r) return;
     r.rotation.y = angleOf(0) + world.service * STEP - world.yaw;
+    // em pé (celular) as linhas do anel atravessariam o texto
+    if (lines.current) lines.current.visible = !world.portrait && world.tl.studio < 0.07;
   });
 
   return (
@@ -60,12 +65,14 @@ export const ServiceRing = () => {
           <Card key={s.id} index={i} />
         ))}
       </group>
-      {[-3.6, 3.6].map((y) => (
-        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[RING.radius + 0.35, 0.014, 8, 160]} />
-          <meshBasicMaterial color="#f1cdbf" transparent opacity={0.55} toneMapped={false} />
-        </mesh>
-      ))}
+      <group ref={lines}>
+        {[-3.6, 3.6].map((y) => (
+          <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[RING.radius + 0.35, 0.014, 8, 160]} />
+            <meshBasicMaterial color="#f1cdbf" transparent opacity={0.55} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 };

@@ -1,3 +1,4 @@
+import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   BufferGeometry,
   ExtrudeGeometry,
@@ -26,7 +27,7 @@ export const archGeometry = (w: number, h: number): BufferGeometry => {
 };
 
 /** Pétala: superfície paramétrica em forma de gota, convexa por fora, base estreita e ponta fina. */
-export const petalGeometry = (length = 1.9, halfWidth = 0.7, nu = 22, nv = 12): BufferGeometry => {
+export const petalGeometry = (length = 1.9, halfWidth = 0.7, nu = 44, nv = 24): BufferGeometry => {
   const pos: number[] = [];
   const uvs: number[] = [];
   const idx: number[] = [];
@@ -61,7 +62,7 @@ export const petalGeometry = (length = 1.9, halfWidth = 0.7, nu = 22, nv = 12): 
 };
 
 /** Coração volumétrico (curva paramétrica clássica), com bisel macio. */
-export const heartGeometry = (): ExtrudeGeometry => {
+export const heartGeometry = (): BufferGeometry => {
   const shape = new Shape();
   const n = 96;
   for (let i = 0; i <= n; i++) {
@@ -82,5 +83,6 @@ export const heartGeometry = (): ExtrudeGeometry => {
     curveSegments: 48,
   });
   g.center();
-  return g;
+  // normais suavizadas: sem as faixas/“craquelado” do sombreamento facetado
+  return toCreasedNormals(g, Math.PI / 2.4);
 };
