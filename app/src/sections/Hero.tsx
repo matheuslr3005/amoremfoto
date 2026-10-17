@@ -45,14 +45,12 @@ export const Hero = ({ go }: HeroProps) => {
   const y2 = useTransform(sy, (v) => v * 18);
 
   useEffect(() => {
-    let raf = 0;
-    const tick = () => {
+    const onMove = () => {
       mx.set(pointer.x);
       my.set(pointer.y);
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
   }, [mx, my]);
 
   return (

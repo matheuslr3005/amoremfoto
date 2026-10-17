@@ -18,12 +18,10 @@ const ChapterView = ({ chapter, window: w, progress, side }: ChapterViewProps) =
   const fade = [a, a + span * 0.22, b - span * 0.22, b];
   const opacity = useTransform(progress, fade, [0, 1, 1, 0]);
   const y = useTransform(progress, fade, [60, 0, 0, -60]);
-  const blur = useTransform(progress, fade, [14, 0, 0, 14]);
-  const filter = useTransform(blur, (v) => `blur(${v}px)`);
   const letterSpacing = useTransform(progress, fade, ['0.18em', '0em', '0em', '-0.04em']);
 
   return (
-    <motion.article className={`chapter chapter--${side}`} style={{ opacity, y, filter }} aria-label={chapter.title}>
+    <motion.article className={`chapter chapter--${side}`} style={{ opacity, y }} aria-label={chapter.title}>
       <span className="chapter__num">{chapter.num}</span>
       <motion.h2 className="chapter__title" style={{ letterSpacing }}>
         {chapter.title}

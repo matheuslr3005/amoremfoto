@@ -1,7 +1,7 @@
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { Group } from 'three';
-import { Environment, Lightformer, Sparkles } from '@react-three/drei';
+import { Environment, Lightformer, Preload, Sparkles } from '@react-three/drei';
 import { Bloom } from './Bloom';
 import { Beam, Halo } from './Beam';
 import { Effects } from './Effects';
@@ -25,14 +25,23 @@ const Reveal = ({ when, children }: { when: () => boolean; children: ReactNode }
   return <group ref={ref}>{children}</group>;
 };
 
-type SceneProps = { still: boolean; lite: boolean };
+type SceneProps = { still: boolean; lite: boolean; fx: boolean; onReady: () => void };
+
+/** Avisa que o 3D está pronto: só depois do Preload (shaders compilados e texturas já na GPU). */
+const Ready = ({ onReady }: { onReady: () => void }) => {
+  useEffect(() => {
+    const id = requestAnimationFrame(() => requestAnimationFrame(onReady));
+    return () => cancelAnimationFrame(id);
+  }, [onReady]);
+  return null;
+};
 
 const heroOpen = () => 0.5 + 0.14 * intro.value + 0.36 * smoothstep(0.02, 0.92, world.tl.hero);
 const heroHeart = () => 1 - smoothstep(0.22, 0.7, world.tl.hero);
 const contactVisible = () => world.tl.services > 0.9;
 const contactOpen = () => 0.18 + 0.82 * smoothstep(0.05, 0.85, world.tl.contact);
 
-export const Scene = ({ still, lite }: SceneProps) => {
+export const Scene = ({ still, lite, fx, onReady }: SceneProps) => {
   const portrait = useThree((s) => s.size.width / s.size.height < 0.9);
   const contactPos = useMemo<[number, number, number]>(
     () => (portrait ? [0, CONTACT_BLOOM.y + 2.1, CONTACT_BLOOM.z] : [2.6, CONTACT_BLOOM.y, CONTACT_BLOOM.z]),
@@ -78,7 +87,11 @@ export const Scene = ({ still, lite }: SceneProps) => {
         <pointLight position={[contactPos[0], 1.6, contactPos[2] + 4]} color="#ffbfa6" intensity={10} distance={14} decay={2} />
       </Reveal>
 
-      {!lite && <Effects />}
+      {!lite && fx && <Effects />}
+
+      {/* compila todos os shaders e envia todas as texturas à GPU agora (na tela de abertura), não no meio do scroll */}
+      <Preload all />
+      <Ready onReady={onReady} />
     </>
   );
 };

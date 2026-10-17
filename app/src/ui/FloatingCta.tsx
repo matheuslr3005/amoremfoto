@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, useMotionValueEvent, useScroll } from 'motion/react';
 import { waLink } from '../config/site';
+import { stageSpan } from '../lib/timeline';
 
 type FloatingCtaProps = { enabled: boolean };
 
@@ -10,9 +11,11 @@ export const FloatingCta = ({ enabled }: FloatingCtaProps) => {
   const [inServices, setInServices] = useState(false);
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (y) => {
-    setShow(y > window.innerHeight * 0.9 && y < document.documentElement.scrollHeight - window.innerHeight * 1.35);
-    const box = document.querySelector('[data-stage="services"]')?.getBoundingClientRect();
-    setInServices(Boolean(box && box.top < window.innerHeight * 0.4 && box.bottom > window.innerHeight * 0.6));
+    const vh = window.innerHeight;
+    const services = stageSpan('services');
+    const contact = stageSpan('contact');
+    setShow(y > vh * 0.9 && (!contact || y < contact[1] - vh * 0.35));
+    setInServices(Boolean(services && y > services[0] - vh * 0.4 && y < services[1] + vh * 0.4));
   });
 
   return (

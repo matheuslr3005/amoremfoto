@@ -109,8 +109,6 @@ export const Bloom = ({ getOpen, getHeart, position = [0, 0, 0], scale = 1, stil
                       sheen={1}
                       sheenColor="#ffd9cc"
                       sheenRoughness={0.4}
-                      clearcoat={0.35}
-                      clearcoatRoughness={0.4}
                       emissive="#4a2420"
                       emissiveIntensity={0.12}
                     />

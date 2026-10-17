@@ -48,6 +48,9 @@ export const App = () => {
     if (isDebug()) (window as unknown as { __amor: unknown }).__amor = { world, intro };
   }, []);
 
+  const onWorldReady = useCallback(() => setWorldReady(true), []);
+  const onWorldFail = useCallback(() => setGlOk(false), []);
+
   const onDone = useCallback(() => {
     setEntered(true);
     intro.target = 1;
@@ -60,7 +63,7 @@ export const App = () => {
       <Loader ready={ready} onDone={onDone} />
       {glOk && (
         <Suspense fallback={null}>
-          <World still={still} lite={lite} onReady={() => setWorldReady(true)} onFail={() => setGlOk(false)} />
+          <World still={still} lite={lite} onReady={onWorldReady} onFail={onWorldFail} />
         </Suspense>
       )}
       <Cursor />

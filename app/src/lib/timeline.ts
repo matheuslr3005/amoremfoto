@@ -40,6 +40,9 @@ export const measureStages = () => {
   ready = true;
 };
 
+/** Trecho de scroll (em px) de um estágio, já medido. Evita ler o layout a cada evento de scroll. */
+export const stageSpan = (id: StageId): Range | undefined => (ready ? ranges[id] : undefined);
+
 export const getProgress = (y: number, out: Progress): Progress => {
   (Object.keys(out) as StageId[]).forEach((id) => {
     const r = ranges[id];

@@ -26,7 +26,7 @@ export const Rig = ({ still }: RigProps) => {
     intro.value = damp(intro.value, intro.target, 1.1, dt);
 
     const target = window.scrollY;
-    smooth.current = smooth.current === null ? target : damp(smooth.current, target, 9, dt);
+    smooth.current = smooth.current === null ? target : damp(smooth.current, target, 16, dt);
     getProgress(smooth.current, world.tl);
     world.service = serviceFloat(world.tl.services, RING.count);
 

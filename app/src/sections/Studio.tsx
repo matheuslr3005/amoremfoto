@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { motion, useMotionValue, useScroll, useSpring, useTransform, useVelocity } from 'motion/react';
+import { motion, useInView, useMotionValue, useScroll, useSpring, useTransform, useVelocity } from 'motion/react';
 import { PRO_SERVICES, waLink, type Service } from '../config/site';
 import { photoUrl } from '../lib/photos';
 import { Magnetic } from '../ui/Magnetic';
@@ -11,6 +11,8 @@ const MARQUEE = ['Luz natural', 'Sem flash', 'Sem pressa', 'Sem pose forçada', 
 
 /** Faixa de texto que anda sozinha e acelera com a velocidade do scroll. */
 const Marquee = () => {
+  const box = useRef<HTMLDivElement>(null);
+  const visible = useInView(box, { margin: '120px 0px' });
   const x = useMotionValue(0);
   const { scrollY } = useScroll();
   const velocity = useSpring(useVelocity(scrollY), { stiffness: 80, damping: 30 });
@@ -18,6 +20,8 @@ const Marquee = () => {
   const last = useRef(0);
 
   useEffect(() => {
+    if (!visible) return;
+    last.current = performance.now();
     let raf = 0;
     const tick = (t: number) => {
       const dt = Math.min(t - last.current, 64);
@@ -31,12 +35,12 @@ const Marquee = () => {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [x, boost]);
+  }, [x, boost, visible]);
 
   const xPct = useTransform(x, (v) => `${v}%`);
   const items = [...MARQUEE, ...MARQUEE, ...MARQUEE, ...MARQUEE];
   return (
-    <div className="marquee" aria-hidden>
+    <div className="marquee" ref={box} aria-hidden>
       <motion.div className="marquee__track" style={{ x: xPct }}>
         {items.map((t, i) => (
           <span key={i}>

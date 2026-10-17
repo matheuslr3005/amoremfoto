@@ -61,10 +61,9 @@ export const Services = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={s.id}
-              initial={{ opacity: 0, y: 34, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -24, filter: 'blur(8px)' }}
-              transition={{ duration: 0.55, ease: EASE }}
+              initial={{ opacity: 0, y: 26 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE } }}
+              exit={{ opacity: 0, y: -16, transition: { duration: 0.18, ease: 'easeIn' } }}
             >
               <p className="services__group">{s.group}</p>
               <h3 className="services__name">{s.name}</h3>
